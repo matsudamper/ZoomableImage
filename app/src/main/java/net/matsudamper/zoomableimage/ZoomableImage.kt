@@ -80,11 +80,14 @@ public fun ZoomableImage(
             )
         }
     }
+    val zoomTotal by remember {
+        derivedStateOf { state.imageZoom * sizeRate }
+    }
     Box(
         modifier = modifier
             .graphicsLayer {
-                scaleX = (1 / maxZoomLevel) * sizeRate * state.imageZoom
-                scaleY = (1 / maxZoomLevel) * sizeRate * state.imageZoom
+                scaleX = (1 / maxZoomLevel) * zoomTotal
+                scaleY = (1 / maxZoomLevel) * zoomTotal
                 translationX = state.offsetX / maxZoomLevel
                 translationY = state.offsetY / maxZoomLevel
             },
@@ -103,32 +106,32 @@ public fun ZoomableImage(
                             return@run newZoom
                         }
 
-                        val tmpOffsetX = state.offsetX + (pan.x * state.imageZoom)
-                        val tmpOffsetY = state.offsetY + (pan.y * state.imageZoom)
+                        val tmpOffsetX = state.offsetX + (pan.x * zoomTotal)
+                        val tmpOffsetY = state.offsetY + (pan.y * zoomTotal)
                         val capturedContainerSize = containerSize
                         if (capturedContainerSize == null) {
-                            state.offsetX += (pan.x * state.imageZoom)
-                            state.offsetY += (pan.y * state.imageZoom)
+                            state.offsetX += (pan.x * zoomTotal)
+                            state.offsetY += (pan.y * zoomTotal)
                             return@detectTransformGestures
                         }
 
                         val sizeDiffX = capturedContainerSize.width - imageSize.width
                         val sizeDiffY = capturedContainerSize.height - imageSize.height
                         val start = Offset(
-                            x = tmpOffsetX - (imageSize.width * (state.imageZoom - 1) / 2f) + sizeDiffX / 2,
-                            y = tmpOffsetY - (imageSize.height * (state.imageZoom - 1) / 2f) + sizeDiffY / 2,
+                            x = tmpOffsetX - (imageSize.width * (zoomTotal - 1) / 2f) + sizeDiffX / 2,
+                            y = tmpOffsetY - (imageSize.height * (zoomTotal - 1) / 2f) + sizeDiffY / 2,
                         )
                         val end = Offset(
-                            x = start.x + (imageSize.width * state.imageZoom),
-                            y = start.y + (imageSize.height * state.imageZoom),
+                            x = start.x + (imageSize.width * zoomTotal),
+                            y = start.y + (imageSize.height * zoomTotal),
                         )
 
                         state.offsetY = run offsetY@{
-                            if (imageSize.height * state.imageZoom <= capturedContainerSize.height) {
+                            if (imageSize.height * zoomTotal <= capturedContainerSize.height) {
                                 0f
                             } else {
                                 if (start.y >= 0 && pan.y > 0) {
-                                    val imageHeight = imageSize.height * state.imageZoom
+                                    val imageHeight = imageSize.height * zoomTotal
                                     val containerHeight = capturedContainerSize.height
                                     val diffHeight = imageHeight - containerHeight
                                     return@offsetY diffHeight / 2
@@ -138,7 +141,7 @@ public fun ZoomableImage(
                                     end.y <= capturedContainerSize.height &&
                                     pan.y < 0
                                 ) {
-                                    val imageHeight = imageSize.height * state.imageZoom
+                                    val imageHeight = imageSize.height * zoomTotal
                                     val containerHeight = capturedContainerSize.height
                                     val diffHeight = imageHeight - containerHeight
                                     return@offsetY -diffHeight / 2
@@ -148,11 +151,11 @@ public fun ZoomableImage(
                         }
 
                         state.offsetX = run offsetX@{
-                            if (imageSize.width * state.imageZoom <= capturedContainerSize.width) {
+                            if (imageSize.width * zoomTotal <= capturedContainerSize.width) {
                                 0f
                             } else {
                                 if (start.x >= 0 && pan.x > 0) {
-                                    val imageWidth = imageSize.width * state.imageZoom
+                                    val imageWidth = imageSize.width * zoomTotal
                                     val containerWidth = capturedContainerSize.width
                                     val diffWidth = imageWidth - containerWidth
                                     return@offsetX diffWidth / 2
@@ -162,7 +165,7 @@ public fun ZoomableImage(
                                     end.x <= capturedContainerSize.width &&
                                     pan.x < 0
                                 ) {
-                                    val imageWidth = imageSize.width * state.imageZoom
+                                    val imageWidth = imageSize.width * zoomTotal
                                     val containerWidth = capturedContainerSize.width
                                     val diffWidth = imageWidth - containerWidth
                                     return@offsetX -diffWidth / 2

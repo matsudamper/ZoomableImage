@@ -58,9 +58,9 @@ public fun rememberZoomableImageState(): ZoomableImageState {
 @Composable
 public fun ZoomableImage(
     modifier: Modifier,
-    state: ZoomableImageState = ZoomableImageState(),
+    state: ZoomableImageState = rememberZoomableImageState(),
     painter: Painter,
-    maxZoomLevel: Float = 5.0f,
+    maxZoomLevel: Float = 6.0f,
     contentDescription: String?
 ) {
     val imageSize by rememberUpdatedState(painter.intrinsicSize)

@@ -71,10 +71,10 @@ internal class MainActivity : ComponentActivity() {
                             )
                         }
                     },
-                    content = {
+                    content = { padding ->
                         Surface(
                             modifier = Modifier
-                                .padding(it)
+                                .padding(padding)
                                 .fillMaxSize()
                         ) {
                             when (type) {
@@ -108,6 +108,7 @@ internal class MainActivity : ComponentActivity() {
                                     ZoomableImage(
                                         modifier = Modifier.fillMaxSize(),
                                         painter = rememberAsyncImagePainter(model = imageUrl),
+                                        maxZoomLevel = 10f,
                                         contentDescription = null,
                                     )
                                 }

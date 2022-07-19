@@ -74,12 +74,10 @@ public fun ZoomableImage(
             val imageWidth = imageSize.width.takeIf { it > 0 } ?: return@derivedStateOf 1f
             val imageHeight = imageSize.height.takeIf { it > 0 } ?: return@derivedStateOf 1f
 
-            val ra = min(
+            min(
                 capturedContainerSize.width / imageWidth,
                 capturedContainerSize.height / imageHeight,
             )
-
-            ra
         }
     }
     Box(

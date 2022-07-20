@@ -20,10 +20,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil.compose.SubcomposeAsyncImage
 import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
+import coil.size.Size
 import net.matsudamper.zoomableimage.ui.theme.ZoomableImageTheme
 
 internal class MainActivity : ComponentActivity() {
@@ -100,15 +104,25 @@ internal class MainActivity : ComponentActivity() {
                                                     imageOffset += pan
                                                 }
                                             },
-                                        painter = rememberAsyncImagePainter(model = imageUrl),
+                                        painter = rememberAsyncImagePainter(
+                                            model = ImageRequest.Builder(LocalContext.current)
+                                                .data(imageUrl)
+                                                .size(Size.ORIGINAL)
+                                                .build()
+                                        ),
                                         contentDescription = null
                                     )
                                 }
                                 PageType.HiQuality -> {
                                     ZoomableImage(
                                         modifier = Modifier.fillMaxSize(),
-                                        painter = rememberAsyncImagePainter(model = imageUrl),
-                                        maxZoomLevel = 10f,
+                                        painter = rememberAsyncImagePainter(
+                                            model = ImageRequest.Builder(LocalContext.current)
+                                                .data(imageUrl)
+                                                .size(Size.ORIGINAL)
+                                                .build()
+                                        ),
+                                        maxZoomLevel = 15f,
                                         contentDescription = null,
                                     )
                                 }

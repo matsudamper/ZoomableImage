@@ -1,20 +1,13 @@
 package net.matsudamper.zoomableimage
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Stable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -22,9 +15,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
 import kotlin.math.min
 
@@ -67,143 +58,136 @@ public fun ZoomableImage(
     var containerSize: IntSize? by remember {
         mutableStateOf(null)
     }
-    val sizeRate by remember {
-        derivedStateOf {
-            if (imageSize == Size.Unspecified) return@derivedStateOf 1f
-            val capturedContainerSize = containerSize ?: return@derivedStateOf 1f
-            val imageWidth = imageSize.width.takeIf { it > 0 } ?: return@derivedStateOf 1f
-            val imageHeight = imageSize.height.takeIf { it > 0 } ?: return@derivedStateOf 1f
-
-            min(
-                capturedContainerSize.width / imageWidth,
-                capturedContainerSize.height / imageHeight,
-            )
-        }
-    }
     val zoomTotal by remember {
-        derivedStateOf { state.imageZoom * sizeRate }
+        derivedStateOf { state.imageZoom }
+    }
+    val imageContainerSize: Size by remember {
+        derivedStateOf {
+            if (imageSize == Size.Unspecified) return@derivedStateOf Size.Unspecified
+            val capturedContainerSize = containerSize ?: return@derivedStateOf Size.Unspecified
+            val imageWidth =
+                imageSize.width.takeIf { it > 0 } ?: return@derivedStateOf Size.Unspecified
+            val imageHeight =
+                imageSize.height.takeIf { it > 0 } ?: return@derivedStateOf Size.Unspecified
+
+            val widthRatio = capturedContainerSize.width / imageWidth
+            val heightRatio = capturedContainerSize.height / imageHeight
+
+            val minRatio = min(
+                widthRatio,
+                heightRatio,
+            )
+            val result = if (widthRatio > heightRatio) {
+                Size(
+                    width = imageWidth * minRatio,
+                    height = capturedContainerSize.height.toFloat(),
+                )
+            } else {
+                Size(
+                    width = capturedContainerSize.width.toFloat(),
+                    height = imageHeight * minRatio,
+                )
+            }
+
+            result
+        }
     }
     Box(
         modifier = modifier
             .graphicsLayer {
-                scaleX = (1 / maxZoomLevel) * zoomTotal
-                scaleY = (1 / maxZoomLevel) * zoomTotal
-                translationX = state.offsetX / maxZoomLevel
-                translationY = state.offsetY / maxZoomLevel
+                scaleX = zoomTotal
+                scaleY = zoomTotal
+                translationX = state.offsetX
+                translationY = state.offsetY
+            }
+            .onSizeChanged {
+                containerSize = it
+            }
+            .pointerInput(Unit) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    if (imageContainerSize == Size.Unspecified) return@detectTransformGestures
+
+                    state.imageZoom = run {
+                        val newZoom = state.imageZoom * zoom
+                        if (newZoom < 1f && zoom < 1) return@run 1f
+                        if (newZoom > maxZoomLevel && zoom > 1) return@run maxZoomLevel
+                        return@run newZoom
+                    }
+
+                    val tmpOffsetX = state.offsetX + (pan.x * zoomTotal)
+                    val tmpOffsetY = state.offsetY + (pan.y * zoomTotal)
+                    val capturedContainerSize = containerSize
+                    if (capturedContainerSize == null) {
+                        state.offsetX += (pan.x * zoomTotal)
+                        state.offsetY += (pan.y * zoomTotal)
+                        return@detectTransformGestures
+                    }
+
+                    val sizeDiffX = capturedContainerSize.width - imageContainerSize.width
+                    val sizeDiffY = capturedContainerSize.height - imageContainerSize.height
+                    val start = Offset(
+                        x = tmpOffsetX - (imageContainerSize.width * (zoomTotal - 1) / 2f) + (sizeDiffX / 2),
+                        y = tmpOffsetY - (imageContainerSize.height * (zoomTotal - 1) / 2f) + (sizeDiffY / 2),
+                    )
+                    val end = Offset(
+                        x = start.x + (imageContainerSize.width * zoomTotal),
+                        y = start.y + (imageContainerSize.height * zoomTotal),
+                    )
+                    state.offsetY = run offsetY@{
+                        if (imageContainerSize.height * zoomTotal <= capturedContainerSize.height) {
+                            0f
+                        } else {
+                            if (start.y >= 0 && pan.y > 0) {
+                                val imageHeight = imageContainerSize.height * zoomTotal
+                                val containerHeight = capturedContainerSize.height
+                                val diffHeight = imageHeight - containerHeight
+                                return@offsetY diffHeight / 2
+                            }
+
+                            if (
+                                end.y <= capturedContainerSize.height &&
+                                pan.y < 0
+                            ) {
+                                val imageHeight = imageContainerSize.height * zoomTotal
+                                val containerHeight = capturedContainerSize.height
+                                val diffHeight = imageHeight - containerHeight
+                                return@offsetY -diffHeight / 2
+                            }
+                            tmpOffsetY
+                        }
+                    }
+
+                    state.offsetX = run offsetX@{
+                        if (imageContainerSize.width * zoomTotal <= capturedContainerSize.width) {
+                            0f
+                        } else {
+                            if (start.x >= 0 && pan.x > 0) {
+                                val imageWidth = imageContainerSize.width * zoomTotal
+                                val containerWidth = capturedContainerSize.width
+                                val diffWidth = imageWidth - containerWidth
+                                return@offsetX diffWidth / 2
+                            }
+
+                            if (
+                                end.x <= capturedContainerSize.width &&
+                                pan.x < 0
+                            ) {
+                                val imageWidth = imageContainerSize.width * zoomTotal
+                                val containerWidth = capturedContainerSize.width
+                                val diffWidth = imageWidth - containerWidth
+                                return@offsetX -diffWidth / 2
+                            }
+                            tmpOffsetX
+                        }
+                    }
+                }
             },
         contentAlignment = Alignment.Center,
     ) {
-        Layout(
-            modifier = Modifier
-                .pointerInput(Unit) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        if (imageSize == Size.Unspecified) return@detectTransformGestures
-
-                        state.imageZoom = run {
-                            val newZoom = state.imageZoom * zoom
-                            if (newZoom < 1f && zoom < 1) return@run 1f
-                            if (newZoom > maxZoomLevel && zoom > 1) return@run maxZoomLevel
-                            return@run newZoom
-                        }
-
-                        val tmpOffsetX = state.offsetX + (pan.x * zoomTotal)
-                        val tmpOffsetY = state.offsetY + (pan.y * zoomTotal)
-                        val capturedContainerSize = containerSize
-                        if (capturedContainerSize == null) {
-                            state.offsetX += (pan.x * zoomTotal)
-                            state.offsetY += (pan.y * zoomTotal)
-                            return@detectTransformGestures
-                        }
-
-                        val sizeDiffX = capturedContainerSize.width - imageSize.width
-                        val sizeDiffY = capturedContainerSize.height - imageSize.height
-                        val start = Offset(
-                            x = tmpOffsetX - (imageSize.width * (zoomTotal - 1) / 2f) + sizeDiffX / 2,
-                            y = tmpOffsetY - (imageSize.height * (zoomTotal - 1) / 2f) + sizeDiffY / 2,
-                        )
-                        val end = Offset(
-                            x = start.x + (imageSize.width * zoomTotal),
-                            y = start.y + (imageSize.height * zoomTotal),
-                        )
-
-                        state.offsetY = run offsetY@{
-                            if (imageSize.height * zoomTotal <= capturedContainerSize.height) {
-                                0f
-                            } else {
-                                if (start.y >= 0 && pan.y > 0) {
-                                    val imageHeight = imageSize.height * zoomTotal
-                                    val containerHeight = capturedContainerSize.height
-                                    val diffHeight = imageHeight - containerHeight
-                                    return@offsetY diffHeight / 2
-                                }
-
-                                if (
-                                    end.y <= capturedContainerSize.height &&
-                                    pan.y < 0
-                                ) {
-                                    val imageHeight = imageSize.height * zoomTotal
-                                    val containerHeight = capturedContainerSize.height
-                                    val diffHeight = imageHeight - containerHeight
-                                    return@offsetY -diffHeight / 2
-                                }
-                                tmpOffsetY
-                            }
-                        }
-
-                        state.offsetX = run offsetX@{
-                            if (imageSize.width * zoomTotal <= capturedContainerSize.width) {
-                                0f
-                            } else {
-                                if (start.x >= 0 && pan.x > 0) {
-                                    val imageWidth = imageSize.width * zoomTotal
-                                    val containerWidth = capturedContainerSize.width
-                                    val diffWidth = imageWidth - containerWidth
-                                    return@offsetX diffWidth / 2
-                                }
-
-                                if (
-                                    end.x <= capturedContainerSize.width &&
-                                    pan.x < 0
-                                ) {
-                                    val imageWidth = imageSize.width * zoomTotal
-                                    val containerWidth = capturedContainerSize.width
-                                    val diffWidth = imageWidth - containerWidth
-                                    return@offsetX -diffWidth / 2
-                                }
-                                tmpOffsetX
-                            }
-                        }
-                    }
-                },
-            content = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .onSizeChanged {
-                            containerSize = it
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Image(
-                        modifier = Modifier,
-                        painter = painter,
-                        contentDescription = contentDescription
-                    )
-                }
-            }
-        ) { measurables, constraints ->
-            val placeable = measurables.map {
-                it.measure(
-                    Constraints.fixed(
-                        width = (constraints.maxWidth * maxZoomLevel).toInt(),
-                        height = (constraints.maxHeight * maxZoomLevel).toInt(),
-                    )
-                )
-            }.first()
-
-            layout(placeable.width, placeable.height) {
-                placeable.place(0, 0)
-            }
-        }
+        Image(
+            modifier = Modifier,
+            painter = painter,
+            contentDescription = contentDescription
+        )
     }
 }

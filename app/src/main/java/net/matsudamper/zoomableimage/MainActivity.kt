@@ -1,13 +1,9 @@
 package net.matsudamper.zoomableimage
 
-import android.graphics.pdf.PdfDocument.Page
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
@@ -17,14 +13,9 @@ import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
-import coil.compose.SubcomposeAsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import coil.size.Size
@@ -114,17 +105,18 @@ internal class MainActivity : ComponentActivity() {
                                     )
                                 }
                                 PageType.HiQuality -> {
-                                    ZoomableImage(
-                                        modifier = Modifier.fillMaxSize(),
-                                        painter = rememberAsyncImagePainter(
-                                            model = ImageRequest.Builder(LocalContext.current)
-                                                .data(imageUrl)
-                                                .size(Size.ORIGINAL)
-                                                .build()
-                                        ),
-                                        maxZoomLevel = 15f,
-                                        contentDescription = null,
-                                    )
+                                    Zoomable(state = rememberZoomableState()) {
+                                        Image(
+                                            modifier = Modifier,
+                                            painter = rememberAsyncImagePainter(
+                                                model = ImageRequest.Builder(LocalContext.current)
+                                                    .data(imageUrl)
+                                                    .size(Size.ORIGINAL)
+                                                    .build()
+                                            ),
+                                            contentDescription = null
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -142,4 +134,4 @@ public enum class PageType {
 }
 
 private val imageUrl =
-    "https://github.com/matsudamper/ZoomableImage/blob/main/network_resource/picture.jpg?raw=true"
+    "https://images.pexels.com/photos/2832034/pexels-photo-2832034.jpeg"
